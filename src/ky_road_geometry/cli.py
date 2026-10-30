@@ -8,7 +8,7 @@ from pathlib import Path
 
 def main(argv=None) -> None:
     ap = argparse.ArgumentParser(prog="kyrg")
-    ap.add_argument("command", choices=["network", "inventory", "tiles", "harvest", "profile", "grades"])
+    ap.add_argument("command", choices=["network", "inventory", "tiles", "harvest", "profile", "grades", "sight"])
     ap.add_argument("--data", type=Path, default=Path("data"))
     ap.add_argument("--counties", nargs="*", help="only routes in these counties (harvest, profile)")
     ap.add_argument("--workers", type=int, default=8)
@@ -89,6 +89,24 @@ def main(argv=None) -> None:
         (out / "grades.json").write_text(json.dumps(result, indent=2, default=str))
         log(json.dumps({k: v for k, v in result.items() if k != "class_confusion"}, indent=1))
         log("\n" + pd.DataFrame(result["class_confusion"]).fillna(0).astype(int).to_string())
+    if a.command == "sight":
+        import numpy as np
+        import pandas as pd
+
+        from . import sight, speed
+        prof = pd.read_parquet(a.data / "analysis" / "profile_road.parquet")
+        prof = prof[prof["route"].isin(parts)].reset_index(drop=True)
+        sd = sight.sight_distances(prof)
+        prof = pd.concat([prof, sd], axis=1)
+        prof["speed_mph"] = speed.posted(prof, pd.read_parquet(a.data / "inventory" / "speed_limits.parquet"))
+        v = prof["speed_mph"] + speed.OVER_MPH
+        for d, sign in (("inv", 1), ("non", -1)):
+            prof[f"ssd_need_{d}"] = sight.stopping_sight_required(v, sign * prof["grade"])
+            prof[f"sight_short_{d}"] = prof[f"sight_{d}"] < prof[f"ssd_need_{d}"]
+        prof.to_parquet(a.data / "analysis" / "profile_sight.parquet", index=False)
+        short = np.r_[prof["sight_short_inv"], prof["sight_short_non"]]
+        log(f"{len(prof):,} points; sight shorter than stopping distance at limit+5 on {short.mean():.1%} "
+            f"of point-directions; median sight {np.median(np.r_[prof['sight_inv'], prof['sight_non']]):.0f} ft")
 
 
 if __name__ == "__main__":
