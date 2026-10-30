@@ -9,7 +9,7 @@ from pathlib import Path
 def main(argv=None) -> None:
     ap = argparse.ArgumentParser(prog="kyrg")
     ap.add_argument("command", choices=["network", "inventory", "tiles", "harvest", "profile", "grades", "sight",
-                                        "curves"])
+                                        "curves", "demand"])
     ap.add_argument("--data", type=Path, default=Path("data"))
     ap.add_argument("--counties", nargs="*", help="only routes in these counties (harvest, profile)")
     ap.add_argument("--workers", type=int, default=8)
@@ -108,6 +108,37 @@ def main(argv=None) -> None:
         (out / "curves.json").write_text(json.dumps(result, indent=2, default=str))
         log(json.dumps({k: v for k, v in result.items() if k != "class_confusion"}, indent=1))
         log("\n" + pd.DataFrame(result["class_confusion"]).fillna(0).astype(int).to_string())
+    if a.command == "demand":
+        import json
+
+        import numpy as np
+        import pandas as pd
+
+        from . import cross, demand
+        out = a.data / "analysis"
+        prof = pd.read_parquet(out / "profile_sight.parquet")
+        prof = prof[prof["route"].isin(parts)].reset_index(drop=True)
+        # curvature at each grid point, from the 50-ft chords' smoothed signal
+        st = pd.read_parquet(out / "curvature.parquet")
+        mid = st.assign(s=(st["s0"] + st["s1"]) / 2).dropna(subset=["kappa"])
+        prof["kappa"] = np.nan
+        for (route, part), g in prof.groupby(["route", "part"]).groups.items():
+            k = mid[(mid["route"] == route) & (mid["part"] == part)]
+            if len(k) >= 2:
+                prof.loc[g, "kappa"] = np.interp(prof.loc[g, "s"], k["s"], k["kappa"])
+        prof["kappa"] = prof["kappa"].fillna(0.0)
+        cs = cross.cross_slopes(a.data, prof, log=log)
+        prof = pd.concat([prof, cs], axis=1)
+        prof = pd.concat([prof, demand.demand(prof)], axis=1)
+        prof.to_parquet(out / "demand.parquet", index=False)
+        both = lambda c: np.r_[prof[f"{c}_inv"], prof[f"{c}_non"]]  # noqa: E731
+        mu, mu_stop = both("mu"), both("mu_stop")
+        summary = {"point_directions": int(len(mu)),
+                   "mu_quantiles": {q: round(float(np.nanquantile(mu, q)), 3) for q in (0.5, 0.9, 0.99)},
+                   "mu_stop_quantiles": {q: round(float(np.nanquantile(mu_stop, q)), 3) for q in (0.5, 0.9, 0.99)},
+                   "speed_below_limit_plus_5": float(np.mean(both("speed") < np.r_[prof["speed_mph"], prof["speed_mph"]] + 4.9))}
+        (out / "demand.json").write_text(json.dumps(summary, indent=2))
+        log(json.dumps(summary, indent=1))
     if a.command == "sight":
         import numpy as np
         import pandas as pd
