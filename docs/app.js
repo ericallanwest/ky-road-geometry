@@ -114,6 +114,8 @@
       const [, br] = LAYERS[k];
       return ["step", ["get", k], RAMP[0], br[0], RAMP[1], br[1], RAMP[2], br[2], RAMP[3], br[3], RAMP[4]];
     };
+    // a piece without a value for the layer (no elevation there) is left off, not drawn in the fallback black
+    const hasValue = (k) => ["==", ["typeof", ["get", k]], "number"];
     const legend = document.getElementById("legend");
     const drawLegend = () => {
       const [, br, f, title] = LAYERS[state.layer];
@@ -144,7 +146,7 @@
         paint: { "line-color": token("--ink"), "line-opacity": 0.25, "line-width": ["interpolate", ["linear"], ["zoom"], 8, 7, 14, 14] },
       }, firstSymbol);
       map.addLayer({
-        id: "roads", type: "line", source: "roads", filter: ["has", state.layer],
+        id: "roads", type: "line", source: "roads", filter: hasValue(state.layer),
         layout: { "line-cap": "round", "line-join": "round" },
         paint: { "line-color": colorBy(state.layer), "line-width": ["interpolate", ["linear"], ["zoom"], 8, 1.6, 11, 2.6, 14, 4] },
       }, firstSymbol);
@@ -156,7 +158,7 @@
       state.layer = k;
       seg.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.k === k)));
       if (state.ready) {
-        map.setFilter("roads", ["has", k]);
+        map.setFilter("roads", hasValue(k));
         map.setPaintProperty("roads", "line-color", colorBy(k));
       }
       drawLegend();
@@ -243,7 +245,9 @@
       `<i style="background:${s.color}"></i>${s.name} ${s.ys[i] == null ? "–" : `${s.ys[i].toFixed(d)}${unit}`}`).join("<br>");
 
     // elevation: the road, and the bare earth where it falls away under a bridge
-    let card = cardIn(host, "Elevation", "Feet above sea level. Gaps in the bare-earth line are where it matches the road.");
+    let card = cardIn(host, "Elevation", "Feet above sea level." +
+      (r.bridges.length ? " Bars above: KYTC's recorded bridges, decked over in the road's line." : "") +
+      (P.bare.some((v) => v != null) ? " The bare-earth line shows only where it falls away from the road." : ""));
     let series = [{ name: "Road", label: "Road", color: accent, xs, ys: down(P.z) },
       { name: "Bare earth", label: "Bare earth", color: muted, xs, ys: down(P.bare, "mean"), width: 1.5 }];
     let [lo, hi] = range(series, 10, 50);
@@ -252,10 +256,12 @@
       bars: r.bridges.map(([a, b]) => ({ x0: a, x1: b, fill: ink2 })), series, tip: tip(series, " ft", 0) });
 
     // grade: the lidar against KYTC's records
-    card = cardIn(host, "Grade", "Percent, rising with the milepoints. KYTC's records are uphill and downhill tangents; crests and sags have no single grade.");
+    const kytcGrade = down(fill(r.grades, ([, , dir, g]) => (g == null || !["U", "D"].includes(dir) ? null : dir === "U" ? g : -g)));
+    card = cardIn(host, "Grade", "Percent, rising with the milepoints. " + (kytcGrade.some((v) => v != null)
+      ? "KYTC's records are uphill and downhill tangents; crests and sags have no single grade."
+      : "KYTC's grade inventory has no uphill or downhill tangents on this route."));
     series = [{ name: "Lidar", label: "Lidar", color: accent, xs, ys: down(P.grade) },
-      { name: "KYTC", label: "KYTC", color: muted, xs, width: 1.5,
-        ys: down(fill(r.grades, ([, , dir, g]) => (g == null || !["U", "D"].includes(dir) ? null : dir === "U" ? g : -g))) }];
+      { name: "KYTC", label: "KYTC", color: muted, xs, width: 1.5, ys: kytcGrade }];
     [lo, hi] = range(series, 1, 2);
     lo = Math.max(lo, -16); hi = Math.min(hi, 16);
     lineChart(card, { H: 190, aria: `Grade along ${routeLabel(r.route)}.`, x: xAxis,

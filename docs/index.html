@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Where friction matters</title>
   <meta name="description" content="Grade, curvature, superelevation and sight distance along eastern Kentucky's state routes, derived from public lidar, checked against the state's own inventories, and turned into a map of how much grip the road asks of a car.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M2 14C8 14 8 2 14 2' fill='none' stroke='%232a78d6' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
   <link rel="stylesheet" href="style.css">
 </head>
@@ -57,13 +58,13 @@
       <h2>Checked against KYTC's inventories</h2>
       <h3>Horizontal curves</h3>
       <p id="curvesText"></p>
-      <table id="curvesTable" class="score"></table>
+      <div class="scroll"><table id="curvesTable" class="score"></table></div>
       <h3>Grades, crests and sags</h3>
       <p id="gradesText"></p>
-      <table id="gradesTable" class="score"></table>
+      <div class="scroll"><table id="gradesTable" class="score"></table></div>
       <h3>Bridges</h3>
       <p id="bridgesText"></p>
-      <table id="bridgesTable" class="score"></table>
+      <div class="scroll"><table id="bridgesTable" class="score"></table></div>
     </section>
 
     <section class="wrap">

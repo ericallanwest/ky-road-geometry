@@ -131,10 +131,14 @@ def build(data: Path, docs: Path, log=print) -> None:
     log(f"map.geojson: {_write(out / 'map.geojson', gj) / 1e6:.1f} MB")
     log(f"routes/: {route_files(d, table, ways, inv, found, dips, out / 'routes') / 1e6:.1f} MB")
 
-    # the page opens on a 5-25 mi route where much of the road asks a lot
+    # the page opens on a 5-25 mi route, at least half of it KYTC grade tangents to compare, where much of the
+    # road asks a lot
     share = d.assign(hi=np.fmax(d["mu_inv"], d["mu_non"]) >= 0.2).groupby("route")["hi"].mean()
-    length = table.set_index("ROUTE")["LENGTH_MI"]
-    pick = share[length.reindex(share.index).between(5, 25)].sort_values().index[-1]
+    length = table.set_index("ROUTE")["LENGTH_MI"].reindex(share.index)
+    g = inv["grades"]
+    tangent_mi = g[g["GRADEDIR"].isin(["U", "D"]) & g["GRADEPER"].notna()].groupby("route")["MILES"].sum()
+    covered = (tangent_mi.reindex(share.index).fillna(0) / length) >= 0.5
+    pick = share[length.between(5, 25) & covered].sort_values().index[-1]
 
     fits = pd.read_parquet(an / "grade_fits.parquet")
     tangents = fits[fits["GRADEDIR"].isin(["U", "D"]) & fits["dem_rmse"].notna()]
