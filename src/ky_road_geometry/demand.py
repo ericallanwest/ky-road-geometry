@@ -17,6 +17,9 @@ what accelerating at ``ACCEL`` from the last allows.
 * combined on the friction circle, ``mu = sqrt(mu_x^2 + mu_y^2)``;
 * and where a crest (by day) or a sag (by night) limits sight, ``mu_stop``: the steady deceleration
   that stops the car within the sight distance left after 2.5 s of perception and reaction.
+
+A grade steeper than ``MAX_GRADE_PCT`` isn't road here (a step in the lidar profile the bridge
+search didn't catch, or the route line off the pavement), so demand reads it as that grade.
 """
 from __future__ import annotations
 
@@ -28,6 +31,7 @@ MPH = 5280 / 3600
 ACCEL = 3.0           # ft/s^2, leaving a curve
 DECEL = 5.0           # ft/s^2, slowing for one
 REACTION_S = 2.5
+MAX_GRADE_PCT = 15.0
 # AASHTO Green Book Table 3-7: maximum side friction for design, by speed
 F_SPEED = np.array([15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80], float)
 F_MAX = np.array([.32, .27, .23, .20, .18, .16, .15, .14, .13, .12, .11, .10, .09, .08])
@@ -80,7 +84,7 @@ def demand(prof: pd.DataFrame) -> pd.DataFrame:
         radius = np.where(np.abs(kappa) > 1e-6, 1 / np.abs(np.where(kappa == 0, np.nan, kappa)), np.inf)
         e = superelevation(p[f"cs_{d}"].to_numpy(), kappa, sign)
         e = np.where(np.isfinite(e), e, -2.0)                 # no reading: assume a normal crown
-        G = sign * p["grade"].to_numpy()
+        G = sign * np.clip(p["grade"].to_numpy(), -MAX_GRADE_PCT, MAX_GRADE_PCT)
         v_cap = curve_speed(radius, e, p["speed_mph"].to_numpy() + 5.0)
         v = np.empty(len(p))
         acc = np.zeros(len(p))

@@ -9,7 +9,8 @@ from pathlib import Path
 def main(argv=None) -> None:
     ap = argparse.ArgumentParser(prog="kyrg")
     ap.add_argument("command", choices=["network", "inventory", "tiles", "harvest", "profile", "grades", "sight",
-                                        "curves", "demand"])
+                                        "curves", "demand", "site"])
+    ap.add_argument("--docs", type=Path, default=Path("docs"))
     ap.add_argument("--data", type=Path, default=Path("data"))
     ap.add_argument("--counties", nargs="*", help="only routes in these counties (harvest, profile)")
     ap.add_argument("--workers", type=int, default=8)
@@ -27,6 +28,10 @@ def main(argv=None) -> None:
     if a.command == "inventory":
         from . import inventory
         inventory.build(a.data, log=log)
+        return
+    if a.command == "site":
+        from . import site
+        site.build(a.data, a.docs, log=log)
         return
 
     table, parts = network.read(a.data / "network.parquet")
@@ -136,7 +141,8 @@ def main(argv=None) -> None:
         summary = {"point_directions": int(len(mu)),
                    "mu_quantiles": {q: round(float(np.nanquantile(mu, q)), 3) for q in (0.5, 0.9, 0.99)},
                    "mu_stop_quantiles": {q: round(float(np.nanquantile(mu_stop, q)), 3) for q in (0.5, 0.9, 0.99)},
-                   "speed_below_limit_plus_5": float(np.mean(both("speed") < np.r_[prof["speed_mph"], prof["speed_mph"]] + 4.9))}
+                   "speed_below_limit_plus_5": float(np.mean(both("speed") < np.r_[prof["speed_mph"], prof["speed_mph"]] + 4.9)),
+                   "cross_slope_off_pavement": float(np.mean(both("off_pavement")))}
         (out / "demand.json").write_text(json.dumps(summary, indent=2))
         log(json.dumps(summary, indent=1))
     if a.command == "sight":

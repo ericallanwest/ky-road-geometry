@@ -9,6 +9,10 @@ crown, and a band across it would average the two lanes' opposite slopes to noth
 
 On a crowned tangent the right lane falls away from the crown, about -2%. In a curve the lane
 banks toward the inside: superelevation ``e`` is the rise toward the outside of the curve.
+
+A reading steeper than ``MAX_PCT`` either way isn't pavement (AASHTO caps superelevation at 12%):
+the band has run onto a shoulder, ditch or cut slope, where the route line sits off the road's
+center or the road is narrow. Those readings are dropped, and demand assumes a normal crown there.
 """
 from __future__ import annotations
 
@@ -22,6 +26,7 @@ LANE_OUT_FT = 8.0
 STRIP_FT = 24.0
 STRIP_STEP_FT = 2.0
 SMOOTH = 5            # grid points in the rolling median that settles the reading
+MAX_PCT = 12.0        # steeper than this, the band is off the pavement
 
 
 def cross_slopes(root, prof: pd.DataFrame, log=print) -> pd.DataFrame:
@@ -49,6 +54,8 @@ def cross_slopes(root, prof: pd.DataFrame, log=print) -> pd.DataFrame:
         s = cs.loc[order, f"cs_raw_{d}"]
         cs.loc[order, f"cs_{d}"] = s.groupby([k.loc[order] for k in key]).transform(
             lambda v: v.rolling(SMOOTH, center=True, min_periods=3).median()).to_numpy()
+        cs[f"off_pavement_{d}"] = cs[f"cs_{d}"].abs() > MAX_PCT
+        cs.loc[cs[f"off_pavement_{d}"], f"cs_{d}"] = np.nan
     return cs
 
 

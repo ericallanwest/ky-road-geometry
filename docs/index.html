@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Where friction matters</title>
+  <meta name="description" content="Grade, curvature, superelevation and sight distance along eastern Kentucky's state routes, derived from public lidar, checked against the state's own inventories, and turned into a map of how much grip the road asks of a car.">
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="wrap">
+    <p class="kicker"><a href="https://ericallanwest.github.io/projects/">← Projects</a></p>
+    <h1>Where friction matters</h1>
+    <p class="lede">Road geometry from public lidar along <span id="nMiles">2,060</span> miles of eastern Kentucky's
+      state routes, checked against the state's own inventories and turned into a map of how much grip the
+      road asks of a car.</p>
+  </header>
+
+  <main>
+    <section class="wrap">
+      <p>How much friction a road needs depends on its geometry: how sharp its curves are, how steep its grades,
+        how much its lanes bank, and how far ahead a driver can see. Kentucky publishes the ingredients: the
+        Kentucky Transportation Cabinet's road network with its curve, grade, speed-limit and bridge
+        inventories, and KyFromAbove's statewide lidar, a bare-earth elevation model at 2-ft resolution.</p>
+      <p>This project derives the geometry from those sources for KYTC's District 12, seven mountain counties
+        in the eastern coalfield, and checks it against the inventories. It then combines them into friction
+        demand: the share of a car's weight its tires must deliver, braking and cornering, at the speed the
+        road is likely driven. It measures demand only. What the pavement supplies, and what level of demand
+        calls for a closer look, are other questions.</p>
+      <div class="kpis" id="kpis" aria-live="polite"></div>
+    </section>
+
+    <section>
+      <div class="wrap">
+        <h2>Where the road asks the most</h2>
+        <p>Each 0.1-mile piece shows the most demanding point in it, in whichever direction traffic drives. Switch
+          layers for the geometry behind the demand, and click a road for its profile.</p>
+        <div class="controls" role="group" aria-label="Map layer">
+          <span class="control-label">Show</span>
+          <div class="seg" id="layerSeg"></div>
+        </div>
+      </div>
+      <div class="map-shell">
+        <div id="map" role="region" aria-label="Map of District 12 roads colored by friction demand"></div>
+        <div class="map-hint">Click a road for its profile</div>
+        <div class="legend" id="legend"></div>
+      </div>
+      <div class="wrap" id="profile" aria-live="polite">
+        <h3 id="profileTitle">Route profile</h3>
+        <p class="sub" id="profileSub"></p>
+        <div class="charts one" id="profileCharts"></div>
+      </div>
+    </section>
+
+    <section class="wrap">
+      <h2>Checked against KYTC's inventories</h2>
+      <h3>Horizontal curves</h3>
+      <p id="curvesText"></p>
+      <table id="curvesTable" class="score"></table>
+      <h3>Grades, crests and sags</h3>
+      <p id="gradesText"></p>
+      <table id="gradesTable" class="score"></table>
+      <h3>Bridges</h3>
+      <p id="bridgesText"></p>
+      <table id="bridgesTable" class="score"></table>
+    </section>
+
+    <section class="wrap">
+      <h2>How it works</h2>
+      <ol class="steps">
+        <li><b>Network.</b> KYTC's All Roads layer for the seven counties, US and KY routes, with each feature's
+          measures anchored to its milepoints. Divided highways' second carriageways, the <code>-010</code> routes,
+          are turned to run with the mainline's measure.</li>
+        <li><b>Lidar, read once.</b> KyFromAbove's 2-ft tiles are cloud-optimized GeoTIFFs on AWS, about 30 MB
+          each. Only the 512-by-512 blocks within 65 ft of a road are read, and the corridor is kept locally:
+          <span id="nBlocks">26,771</span> blocks, the newest lidar phase first. Which tile is read where comes
+          from a dated snapshot of the tile indexes.</li>
+        <li><b>Profile and grade.</b> Elevation every 0.005 mi along each route, by bilinear interpolation. Grade
+          is the central difference over 52.8 ft. A bare-earth model has the bridges taken out, so dips where the
+          profile falls steeply into a valley and climbs back are found and decked over, along with every
+          recorded bridge.</li>
+        <li><b>Curves.</b> Curvature from 50-ft chords of the route line. A curve is a run of one direction above
+          a 3,048-ft radius. Its radius comes from the curvature of its core, the part at 80% or more of its
+          peak, so spirals don't stretch it. A circle fit to the core flags curves that are really two.</li>
+        <li><b>Cross slope.</b> The lidar across the right-hand lane, 4 and 8 ft out from the route line, each
+          averaged along 24 ft. Reading within one lane keeps the crown from cancelling itself. On a curve the
+          lane's bank is its superelevation.</li>
+        <li><b>Sight distance.</b> From a 3.5-ft eye to a 2-ft object, the farthest point a crest leaves in view,
+          and at night in a sag, where a 2-ft headlight beam aimed 1° up meets the road. Both are computed on the
+          profile itself, each way.</li>
+        <li><b>Speed.</b> The posted limit plus 5 mph, capped on curves at √(gR(e+f)) with AASHTO's side friction,
+          then ramped: braking at 5 ft/s² into a curve, accelerating at 3 ft/s² out of it.</li>
+        <li><b>Demand.</b> Along the road, |a/g + G/100|; across it, |V²/gR − e/100|; combined on the friction
+          circle. Separately, the friction it takes to stop within the sight distance a crest or sag leaves,
+          after 2.5 s to react.</li>
+      </ol>
+    </section>
+
+    <section class="wrap">
+      <h2>Data and code</h2>
+      <p>Road network and inventories: Kentucky Transportation Cabinet, public ArcGIS feature services
+        (<a id="serviceLink" href="https://services2.arcgis.com/CcI36Pduqd0OR4W9/ArcGIS/rest/services">KYTC</a>),
+        fetched <span id="fetched">2026-10-30</span>. Elevation: <a href="https://kyfromabove.ky.gov/">KyFromAbove</a>
+        bare-earth DEMs on the AWS Open Data registry, tile indexes snapshotted <span id="snapshot">2026-10-30</span>.
+        This project isn't affiliated with KYTC or KyFromAbove.</p>
+      <p>Code: <a href="https://github.com/ericallanwest/ky-road-geometry">github.com/ericallanwest/ky-road-geometry</a>
+        (Python: NumPy, pandas, Shapely, rasterio, pyproj; MapLibre on this page).</p>
+    </section>
+  </main>
+
+  <footer class="wrap">Eric West · <a href="https://ericallanwest.github.io/">ericallanwest.github.io</a></footer>
+
+  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
