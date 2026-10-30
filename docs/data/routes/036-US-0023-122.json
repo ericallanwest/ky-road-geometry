@@ -1,0 +1,1 @@
+{"route":"036-US-0023-122","name":"US 23 RAMP from KY 302","county":"Floyd","x0":0.0,"dx":0.01,"ways":["inv"],"profile":{"z":[668.3,668.1,665.8],"bare":[null,null,null],"grade":[1.26,-3.05,-4.97],"deg":[0.0,0.0,0.0],"inv":{"e":[0.7,0.7,-0.0],"v":[60.0,60.0,60.0],"mu":[0.014,0.031,0.05],"mu_stop":[1.0,1.0,1.0]}},"grades":[],"curves":[],"bridges":[],"found_curves":[],"dips":[]}

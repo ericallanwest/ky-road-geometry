@@ -1,0 +1,1 @@
+{"route":"064-US-0023-035","name":"US-23 X","county":"Lawrence","x0":0.0,"dx":0.01,"ways":["inv"],"profile":{"z":[595.0,594.7],"bare":[null,null],"grade":[-1.59,1.11],"deg":[0.0,0.0],"inv":{"e":[3.3,3.1],"v":[60.0,60.0],"mu":[0.036,0.033],"mu_stop":[1.0,1.0]}},"grades":[],"curves":[],"bridges":[],"found_curves":[],"dips":[]}

@@ -1,0 +1,1 @@
+{"route":"058-KY-0321-071","name":"KY-321 CONN","county":"Johnson","x0":0.0,"dx":0.01,"ways":["inv"],"profile":{"z":[681.7,682.5,681.9],"bare":[null,null,null],"grade":[1.59,0.56,-2.26],"deg":[0.0,0.0,0.0],"inv":{"e":[6.1,5.1,4.2],"v":[60.0,60.0,60.0],"mu":[0.063,0.051,0.048],"mu_stop":[1.0,1.0,1.0]}},"grades":[],"curves":[],"bridges":[],"found_curves":[],"dips":[]}

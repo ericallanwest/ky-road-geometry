@@ -1,0 +1,1 @@
+{"route":"098-US-0023-322","name":"US-23 RAMP from KY-1460","county":"Pike","x0":0.0,"dx":0.01,"ways":["inv"],"profile":{"z":[672.5,674.0,677.7],"bare":[null,null,null],"grade":[1.79,5.21,7.13],"deg":[0.0,0.0,0.0],"inv":{"e":[0.5,2.3,2.4],"v":[60.0,60.0,60.0],"mu":[0.019,0.057,0.075],"mu_stop":[1.0,1.0,1.0]}},"grades":[],"curves":[],"bridges":[],"found_curves":[],"dips":[]}

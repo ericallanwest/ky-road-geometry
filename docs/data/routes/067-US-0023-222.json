@@ -1,0 +1,1 @@
+{"route":"067-US-0023-222","name":"US-23 RAMP from KY-805","county":"Letcher","x0":0.0,"dx":0.01,"ways":["inv"],"profile":{"z":[1565.1,1565.1,1567.8],"bare":[null,null,null],"grade":[-1.77,3.91,4.19],"deg":[0.0,0.0,0.0],"inv":{"e":[2.3,2.3,2.5],"v":[60.0,60.0,60.0],"mu":[0.029,0.046,0.049],"mu_stop":[1.0,1.0,1.0]}},"grades":[],"curves":[],"bridges":[],"found_curves":[],"dips":[]}

@@ -1,0 +1,1 @@
+{"route":"036-KY-0003-021","name":"KY-3 Y","county":"Floyd","x0":0.0,"dx":0.01,"ways":["inv"],"profile":{"z":[634.7,634.5,634.0],"bare":[null,null,null],"grade":[-1.01,0.23,-2.03],"deg":[0.0,0.0,0.0],"inv":{"e":[4.0,3.1,-0.5],"v":[60.0,60.0,60.0],"mu":[0.041,0.031,0.021],"mu_stop":[1.0,1.0,1.0]}},"grades":[],"curves":[],"bridges":[],"found_curves":[],"dips":[]}

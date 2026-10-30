@@ -1,0 +1,1 @@
+{"route":"098-US-0119-232","name":"US-119 RAMP to KY-194","county":"Pike","x0":0.0,"dx":0.01,"ways":["inv"],"profile":{"z":[945.4,946.6],"bare":[null,null],"grade":[2.0,2.5],"deg":[0.0,0.0],"inv":{"e":[-0.5,-1.9],"v":[60.0,60.0],"mu":[0.021,0.032],"mu_stop":[1.0,1.0]}},"grades":[],"curves":[],"bridges":[],"found_curves":[],"dips":[]}

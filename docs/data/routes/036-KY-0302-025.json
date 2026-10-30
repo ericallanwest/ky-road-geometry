@@ -1,0 +1,1 @@
+{"route":"036-KY-0302-025","name":"KY-302 Y","county":"Floyd","x0":0.0,"dx":0.01,"ways":["inv"],"profile":{"z":[632.2,632.7,634.4],"bare":[null,null,null],"grade":[0.13,2.48,3.27],"deg":[0.0,0.0,0.0],"inv":{"e":[2.5,2.5,3.4],"v":[60.0,60.0,60.0],"mu":[0.025,0.035,0.047],"mu_stop":[1.0,1.0,1.0]}},"grades":[],"curves":[],"bridges":[],"found_curves":[],"dips":[]}
