@@ -1,6 +1,7 @@
 # Where friction matters
 
-**[Project page](https://ericallanwest.github.io/ky-road-geometry/)**
+**[Project page](https://ericallanwest.github.io/ky-road-geometry/)** ·
+**[Crest and sag explorer](https://ericallanwest.github.io/ky-road-geometry/explorer/)**
 
 Road geometry from public lidar along 2,060 miles of eastern Kentucky's state routes, checked
 against the state's own inventories and turned into a map of how much grip the road asks of a car.
@@ -84,6 +85,13 @@ uv run pytest
 
 `--counties Knott` (or any of the seven) limits `harvest`, `profile` and the analysis steps to one
 county. Everything fetched or computed lands in `data/` (not tracked); `docs/data/` is tracked.
+
+## Crest and sag explorer
+
+`notebooks/explorer.py` is a [marimo](https://marimo.io) notebook: shape a vertical curve, pick a
+speed, and it runs the pipeline's own sight-distance and stopping code on it, checked against
+AASHTO's closed forms. The Pages workflow builds the package wheel and exports the notebook to
+WebAssembly at `/explorer/`, so it runs in the browser. Locally: `uv run marimo edit notebooks/explorer.py`.
 
 ## Code
 
