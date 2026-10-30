@@ -23,7 +23,7 @@ look, are other questions.
 | Step | Command | What it does |
 |---|---|---|
 | Network | `kyrg network` | KYTC All Roads for the district's US and KY routes, measures anchored to milepoints, `-010` twin carriageways turned to run with the mainline |
-| Inventories | `kyrg inventory` | KYTC's public curve, grade, speed-limit and bridge records for the district |
+| Inventories | `kyrg inventory` | KYTC's public curve, grade, speed-limit, bridge and traffic-count records for the district |
 | Tile index | `kyrg tiles` | KyFromAbove's three DEM tile indexes, pinned as a dated snapshot of the tiles near the network |
 | Lidar | `kyrg harvest` | Reads only the 512 x 512 blocks within 65 ft of a road, newest phase first, into local corridor GeoTIFFs |
 | Profile | `kyrg profile` | Elevation every 0.005 mi along every route part |
@@ -31,6 +31,7 @@ look, are other questions.
 | Sight | `kyrg sight` | Crest stopping sight and sag headlight distance, each way, computed on the profile |
 | Curves | `kyrg curves` | Curvature from 50-ft chords, curves and their radius, scored against the curve inventory |
 | Demand | `kyrg demand` | Lane cross slope and superelevation, speed profile, friction demand |
+| Crashes | `kyrg crashes` | Kentucky State Police crash reports placed on the network, checked against the geometry and the demand |
 | Page | `kyrg site` | `docs/data/` for the project page |
 
 ## Results (District 12)
@@ -66,6 +67,24 @@ pavement; demand assumes a normal crown there.
 **Demand**, over 837,064 point-directions: median 0.11 of the car's weight, 0.20 at the 90th
 percentile and 0.26 at the 99th. Curves hold 62% of them below the posted limit plus 5 mph.
 
+**Crashes**, Kentucky State Police reports for 2016-2025: 23,328 of the 24,568 on the district's US
+and KY routes (parking lots left out) placed within 150 ft of the route they name, median 11 ft.
+
+| Officer coded the road as | Crashes | Within 100 ft of a curve found in the lidar | ... of a KYTC-recorded curve |
+|---|---|---|---|
+| Curved | 8,046 | 87% | 91% |
+| Straight | 15,248 | 50% | 83% |
+| (all the district's road) | | 73% | 89% |
+
+Crashes coded at a hillcrest are where a crest leaves less sight than it takes to stop 32% of the
+time, against 19% for the rest. By tenth of the road ranked by demand, roadway departures (run off
+the road, a fixed object, overturned) rise from 4 to 32 per 100 million vehicle-miles on wet
+pavement and from 9 to 49 on dry; animal crashes, the placebo, fall from 17 to 9. A negative
+binomial model of each 0.1-mi piece's crashes, with log AADT and its vehicle-miles as exposure,
+gives a rate ratio per 0.1 of demand of 2.11 (95% interval 1.94-2.28) for wet departures, 1.57
+(1.48-1.67) for dry and 0.69 (0.64-0.74) for animal crashes. Traffic is each KYTC traffic section's
+latest count (mostly 2020-2022), so the rates are approximate.
+
 ## Run it
 
 ```sh
@@ -79,6 +98,7 @@ uv run kyrg grades
 uv run kyrg sight
 uv run kyrg curves
 uv run kyrg demand         # about 2 minutes
+uv run kyrg crashes        # needs KSP extracts (below)
 uv run kyrg site
 uv run pytest
 ```
@@ -108,21 +128,27 @@ WebAssembly at `/explorer/`, so it runs in the browser. Locally: `uv run marimo 
 | `cross.py` | Lane cross slope and superelevation |
 | `speed.py` | Posted speeds along the grid |
 | `demand.py` | Speed profile and friction demand |
+| `crashes.py` | Crash reports placed on the network; officer codes and rates by demand |
 | `site.py` | The project page's data |
 
-`scripts/kycrash_pull.py` pulls crash extracts from the Kentucky State Police's public search for
-an optional crash check; the raw extracts stay local (KSP, all rights reserved).
+`scripts/kycrash_pull.py` pulls crash extracts from the Kentucky State Police's public search into
+`data/ksp_crashes/<stamp>/raw/`, which `kyrg crashes` reads. The extracts stay local (KSP, all rights
+reserved); only district-wide counts and rates reach the page.
 
 ## Data
 
 - Road network and inventories: Kentucky Transportation Cabinet, public ArcGIS feature services on
   `https://services2.arcgis.com/CcI36Pduqd0OR4W9/ArcGIS/rest/services/`: `KYTC_All_Roads`,
-  `Horizontal_Curves_Public` (layer 85), `Grade_Vertical_Curves_Public`, `Speed_Limits_Public` and
-  `Kentucky_Bridge_Locations_view`, fetched 2026-10-30.
+  `Horizontal_Curves_Public` (layer 85), `Grade_Vertical_Curves_Public`, `Speed_Limits_Public`,
+  `Kentucky_Bridge_Locations_view` and `Traffic_Section_Middle_Third` (traffic sections with their
+  latest AADT), fetched 2026-10-30.
 - Elevation: KyFromAbove bare-earth DEMs, `https://kyfromabove.s3.us-west-2.amazonaws.com/elevation/DEM`,
   tile indexes snapshotted 2026-10-30.
 
-This project isn't affiliated with KYTC or KyFromAbove.
+- Crashes: Kentucky State Police reports from the public search at crashinformationky.org
+  (© KSP, all rights reserved), 2016-2025, pulled 2026-10-30; counted, not republished.
+
+This project isn't affiliated with KYTC, KyFromAbove or KSP.
 
 ## License
 

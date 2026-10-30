@@ -67,6 +67,21 @@
       <div class="scroll"><table id="bridgesTable" class="score"></table></div>
     </section>
 
+    <section class="wrap" id="crashSection">
+      <h2>Checked against crash reports</h2>
+      <p id="crashIntro"></p>
+      <h3>What the officer saw</h3>
+      <p id="officerText"></p>
+      <div class="scroll"><table id="officerTable" class="score"></table></div>
+      <h3>Where the road asks more, cars leave it more</h3>
+      <p id="ratesText"></p>
+      <div class="charts one" id="ratesChart"></div>
+      <details class="numbers">
+        <summary>The numbers by tenth of the road</summary>
+        <div class="scroll"><table id="ratesTable" class="score"></table></div>
+      </details>
+    </section>
+
     <section class="wrap">
       <h2>How it works</h2>
       <ol class="steps">
@@ -96,6 +111,10 @@
         <li><b>Demand.</b> Along the road, |a/g + G/100|; across it, |V²/gR − e/100|; combined on the friction
           circle. Separately, the friction it takes to stop within the sight distance a crest or sag leaves,
           after 2.5 s to react.</li>
+        <li><b>Crashes.</b> Each police report is placed on the route it names, in its county, at the grid point
+          nearest its coordinates. Rates use each KYTC traffic section's latest count, halved on each carriageway
+          of a divided highway; the rate ratios come from a negative binomial model of each 0.1-mile piece's
+          crashes on its demand and log traffic, with its vehicle-miles as exposure.</li>
       </ol>
     </section>
 
@@ -105,7 +124,9 @@
         (<a id="serviceLink" href="https://services2.arcgis.com/CcI36Pduqd0OR4W9/ArcGIS/rest/services">KYTC</a>),
         fetched <span id="fetched">2026-10-30</span>. Elevation: <a href="https://kyfromabove.ky.gov/">KyFromAbove</a>
         bare-earth DEMs on the AWS Open Data registry, tile indexes snapshotted <span id="snapshot">2026-10-30</span>.
-        This project isn't affiliated with KYTC or KyFromAbove.</p>
+        Crashes: Kentucky State Police reports from the public search at
+        <a href="http://crashinformationky.org/">crashinformationky.org</a> (© KSP, all rights reserved), counted
+        here, not republished. This project isn't affiliated with KYTC, KyFromAbove or KSP.</p>
       <p>Code: <a href="https://github.com/ericallanwest/ky-road-geometry">github.com/ericallanwest/ky-road-geometry</a>
         (Python: NumPy, pandas, Shapely, rasterio, pyproj; MapLibre on this page).</p>
     </section>

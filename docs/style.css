@@ -133,6 +133,9 @@ th { color: var(--ink-2); font-weight: 600; }
 table.score { width: 100%; margin: 14px 0 6px; }
 table.score td.group { color: var(--ink-2); padding-top: 12px; font-weight: 600; }
 table.score .k { color: var(--ink-2); }
+table.score caption { caption-side: top; text-align: left; color: var(--ink-2); font-size: 0.85rem; padding-bottom: 2px; }
+details.numbers { margin: 12px 0 4px; }
+details.numbers summary { cursor: pointer; color: var(--accent); font-size: 0.9rem; }
 
 ol.steps li { margin-bottom: 0.6em; }
 footer { color: var(--ink-2); font-size: 0.85rem; padding: 36px 0 48px; }

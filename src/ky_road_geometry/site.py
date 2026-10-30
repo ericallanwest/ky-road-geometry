@@ -159,6 +159,8 @@ def build(data: Path, docs: Path, log=print) -> None:
         "grade_fit_rmse_ft": float(tangents["dem_rmse"].median()),
         "curves": json.loads((an / "curves.json").read_text()),
         "demand": json.loads((an / "demand.json").read_text()),
+        # KSP's crash reports stay local; these are counts and rates over the whole district
+        "crashes": json.loads((an / "crashes.json").read_text()) if (an / "crashes.json").exists() else None,
         "featured": pick,
     })
     log(f"site.json written; featured {pick}")
