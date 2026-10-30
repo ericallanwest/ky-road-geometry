@@ -95,7 +95,7 @@ select {
 
 /* charts */
 #profile { margin-top: 18px; }
-.legend-inline { display: flex; gap: 18px; flex-wrap: wrap; font-size: 0.88rem; color: var(--ink-2); margin: 10px 0 4px; }
+.legend-inline { display: flex; gap: 4px 18px; flex-wrap: wrap; font-size: 0.88rem; color: var(--ink-2); margin: 10px 0 4px; }
 .legend-inline span { display: inline-flex; align-items: center; gap: 7px; }
 .legend-inline i { display: inline-block; width: 22px; height: 2px; border-radius: 1px; }
 .legend-inline i.band { height: 10px; border-radius: 2px; }

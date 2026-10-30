@@ -36,6 +36,7 @@
   renderKpis();
   renderChecks();
   renderCrashes();
+  renderContext();
   initMap();
 
   // ======================= text, headline numbers and the checks =======================
@@ -173,6 +174,85 @@
         `<td>${fmt.format(r.dry_departure)} (${r.dry_departure_rate.toFixed(1)})</td>` +
         `<td>${fmt.format(r.animal)} (${r.animal_rate.toFixed(1)})</td><td>${pct(r.wet_share, 0)}</td></tr>`).join("") +
       "</tbody>";
+  }
+
+  // ERS's ruggedness and rurality codes by census tract, and the road summed up by them
+  async function renderContext() {
+    const c = site.context;
+    if (!c) { document.getElementById("contextSection").hidden = true; return; }
+    const R = c.by_rrs, U = c.by_ruca;
+    const hi = R.find((r) => r.rrs_name === "Highly rugged"), lo = R[0];
+    const rural = U.find((r) => r.ruca_group === "Rural"), metro = U[0];
+    document.getElementById("contextIntro").textContent =
+      `The USDA Economic Research Service rates every census tract by how rugged its terrain is, across the tract ` +
+      `and along its roads, and codes how rural it is by where its residents commute. District 12's ` +
+      `${c.tracts} tracts are all at least slightly rugged along their roads, and ${c.tracts_by_rrs["Highly rugged"]} ` +
+      `of them are among the ${c.kentucky_highly_rugged} of Kentucky's ${fmt.format(c.kentucky_tracts)} tracts rated ` +
+      `highly rugged; ${c.tracts_by_ruca.Rural} are wholly rural.`;
+    document.getElementById("contextText").textContent =
+      `Within the district, the classes barely separate the road's geometry: every class here is mountain road, ` +
+      `with ${lo.curves_per_mile.toFixed(1)} to ${hi.curves_per_mile.toFixed(1)} curves a mile and a median demand ` +
+      `near ${hi.mu_p50.toFixed(2)}. Crash rates separate them more. Roadway departures on wet pavement run ` +
+      `${hi.wet_departure_rate.toFixed(0)} per 100 million vehicle-miles in highly rugged tracts against ` +
+      `${lo.wet_departure_rate.toFixed(0)} in slightly rugged ones, and ${rural.wet_departure_rate.toFixed(0)} in ` +
+      `rural tracts against ${metro.wet_departure_rate.toFixed(0)} in metropolitan ones, on road that asks about as ` +
+      `much of a car. Whatever the ruggedness class picks up beyond the road's geometry, from roadside slopes to ` +
+      `lane widths, isn't measured here.`;
+    const row = (label, r) => `<tr><td>${label}</td><td>${fmt.format(Math.round(r.miles))} (${pct(r.share, 0)})</td>` +
+      `<td>${r.curves_per_mile.toFixed(1)}</td><td>${r.grade_p90.toFixed(1)}%</td><td>${r.mu_p50.toFixed(2)}</td>` +
+      `<td>${pct(r.top_tenth, 0)}</td><td>${r.wet_departure_rate?.toFixed(1) ?? "–"}</td>` +
+      `<td>${r.dry_departure_rate?.toFixed(1) ?? "–"}</td><td>${r.animal_rate?.toFixed(1) ?? "–"}</td></tr>`;
+    const head = (t) => `<tr><td class="group" colspan="9">${t}</td></tr>`;
+    document.getElementById("contextTable").innerHTML =
+      "<caption>Crash rates per 100 million vehicle-miles.</caption>" +
+      "<thead><tr><th></th><th>Miles of road</th><th>Curves a mile</th><th>Grade, steepest tenth</th>" +
+      "<th>Median demand</th><th>In the district's most demanding tenth</th><th>Departures, wet</th>" +
+      "<th>Departures, dry</th><th>Animal crashes</th></tr></thead><tbody>" +
+      head("Road ruggedness") + R.map((r) => row(r.rrs_name, r)).join("") +
+      head("Rurality") + U.map((r) => row(r.ruca_group, r)).join("") + "</tbody>";
+
+    const tracts = await getJSON("data/tracts.geojson");
+    const host = document.getElementById("tractMaps");
+    const rrs = R.map((r) => r.rrs_name), ruca = U.map((r) => r.ruca_group);
+    tractMap(host, tracts, "rrs", rrs, "Road ruggedness", "ERS's Road Ruggedness Scale, 2020 tracts");
+    tractMap(host, tracts, "ruca", ruca, "Rurality", "ERS's primary RUCA code, grouped");
+  }
+
+  // a small choropleth of the tracts, classes on the sequential ramp, low to high
+  function tractMap(host, gj, key, classes, title, sub) {
+    const card = cardIn(host, title, sub);
+    const steps = classes.length === 3 ? [1, 2, 4] : [0, 1, 3, 4];   // spread the classes over the ramp
+    const color = Object.fromEntries(classes.map((k, i) => [k, RAMP[steps[i]]]));
+    card.insertAdjacentHTML("beforeend", `<div class="legend-inline">${classes.map((k) =>
+      `<span><i class="band" style="background:${color[k]}"></i>${k}</span>`).join("")}</div>`);
+    const rings = (g) => (g.type === "Polygon" ? [g.coordinates] : g.coordinates).flat();
+    let lon0 = Infinity, lon1 = -Infinity, lat0 = Infinity, lat1 = -Infinity;
+    for (const f of gj.features) for (const ring of rings(f.geometry)) for (const [x, y] of ring) {
+      lon0 = Math.min(lon0, x); lon1 = Math.max(lon1, x); lat0 = Math.min(lat0, y); lat1 = Math.max(lat1, y);
+    }
+    const kx = Math.cos(((lat0 + lat1) / 2) * Math.PI / 180);
+    const W = 400, s = (W - 8) / ((lon1 - lon0) * kx), H = Math.round((lat1 - lat0) * s + 8);
+    const { svg, add } = svgIn(card, W, H, `Map of District 12's census tracts by ${title.toLowerCase()}.`);
+    const tip = document.createElement("div");
+    tip.className = "tip";
+    tip.hidden = true;
+    card.appendChild(tip);
+    for (const f of gj.features) {
+      const d = rings(f.geometry).map((ring) => "M" + ring.map(([x, y]) =>
+        `${(4 + (x - lon0) * kx * s).toFixed(1)},${(4 + (lat1 - y) * s).toFixed(1)}`).join("L") + "Z").join("");
+      const path = add("path", { d, fill: color[f.properties[key]] ?? "none", "fill-rule": "evenodd",
+        stroke: token("--surface"), "stroke-width": 1 });
+      path.addEventListener("pointermove", (evt) => {
+        const box = card.getBoundingClientRect(), p = f.properties;
+        tip.hidden = false;
+        tip.innerHTML = `<b>${esc(p.county)} County</b>, tract ${esc(p.geoid.slice(5))}<br>${esc(p[key])}` +
+          `<br>${fmt.format(p.pop)} residents`;
+        const left = evt.clientX - box.left + 14;
+        tip.style.left = `${left + tip.offsetWidth > box.width ? left - tip.offsetWidth - 28 : left}px`;
+        tip.style.top = `${evt.clientY - box.top + 10}px`;
+      });
+      path.addEventListener("pointerleave", () => { tip.hidden = true; });
+    }
   }
 
   // ======================= the map =======================

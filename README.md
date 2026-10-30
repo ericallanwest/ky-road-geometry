@@ -32,6 +32,7 @@ look, are other questions.
 | Curves | `kyrg curves` | Curvature from 50-ft chords, curves and their radius, scored against the curve inventory |
 | Demand | `kyrg demand` | Lane cross slope and superelevation, speed profile, friction demand |
 | Crashes | `kyrg crashes` | Kentucky State Police crash reports placed on the network, checked against the geometry and the demand |
+| Context | `kyrg context` | USDA ERS road ruggedness and rurality by census tract, and the road summed up by them |
 | Page | `kyrg site` | `docs/data/` for the project page |
 
 ## Results (District 12)
@@ -85,6 +86,13 @@ gives a rate ratio per 0.1 of demand of 2.11 (95% interval 1.94-2.28) for wet de
 (1.48-1.67) for dry and 0.69 (0.64-0.74) for animal crashes. Traffic is each KYTC traffic section's
 latest count (mostly 2020-2022), so the rates are approximate.
 
+**Context.** The district's 68 census tracts are all at least slightly rugged along their roads by
+ERS's Road Ruggedness Scale, and 39 of them are among Kentucky's 71 highly rugged tracts; 32 are
+wholly rural (RUCA 10). Within the district the classes barely separate the geometry (5.8 to 6.1
+curves a mile, median demand about 0.14 in each), but wet roadway departures run 19 per 100 million
+vehicle-miles in highly rugged tracts against 7 in slightly rugged ones, and 19 in rural tracts
+against 7 in metropolitan ones.
+
 ## Run it
 
 ```sh
@@ -99,6 +107,7 @@ uv run kyrg sight
 uv run kyrg curves
 uv run kyrg demand         # about 2 minutes
 uv run kyrg crashes        # needs KSP extracts (below)
+uv run kyrg context        # needs the ERS and TIGER files (below)
 uv run kyrg site
 uv run pytest
 ```
@@ -129,6 +138,7 @@ WebAssembly at `/explorer/`, so it runs in the browser. Locally: `uv run marimo 
 | `speed.py` | Posted speeds along the grid |
 | `demand.py` | Speed profile and friction demand |
 | `crashes.py` | Crash reports placed on the network; officer codes and rates by demand |
+| `context.py` | ERS ruggedness and rurality by tract, and the road by them |
 | `site.py` | The project page's data |
 
 `scripts/kycrash_pull.py` pulls crash extracts from the Kentucky State Police's public search into
@@ -145,6 +155,11 @@ reserved); only district-wide counts and rates reach the page.
 - Elevation: KyFromAbove bare-earth DEMs, `https://kyfromabove.s3.us-west-2.amazonaws.com/elevation/DEM`,
   tile indexes snapshotted 2026-10-30.
 
+- Ruggedness and rurality: USDA ERS, Area and Road Ruggedness Scales, 2020 tracts (with each tract's
+  primary RUCA code), `data/context/ers_arrs_2020/2020-area-and-road-ruggedness-scales.csv` from
+  https://www.ers.usda.gov/data-products/area-and-road-ruggedness-scales; tract boundaries: Census
+  TIGER/Line 2020, `data/context/tiger2020_tract_21/tl_2020_21_tract.zip` from
+  https://www2.census.gov/geo/tiger/TIGER2020/TRACT/. Both downloaded 2026-10-30.
 - Crashes: Kentucky State Police reports from the public search at crashinformationky.org
   (© KSP, all rights reserved), 2016-2025, pulled 2026-10-30; counted, not republished.
 

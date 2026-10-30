@@ -1,4 +1,4 @@
-"""Command line: ``kyrg network|inventory|tiles|harvest|profile|grades|sight|curves|demand|crashes|site``."""
+"""Command line: ``kyrg network|inventory|tiles|harvest|profile|grades|sight|curves|demand|crashes|context|site``."""
 from __future__ import annotations
 
 import argparse
@@ -9,7 +9,7 @@ from pathlib import Path
 def main(argv=None) -> None:
     ap = argparse.ArgumentParser(prog="kyrg")
     ap.add_argument("command", choices=["network", "inventory", "tiles", "harvest", "profile", "grades", "sight",
-                                        "curves", "demand", "crashes", "site"])
+                                        "curves", "demand", "crashes", "context", "site"])
     ap.add_argument("--docs", type=Path, default=Path("docs"))
     ap.add_argument("--data", type=Path, default=Path("data"))
     ap.add_argument("--counties", nargs="*", help="only routes in these counties (harvest, profile)")
@@ -36,6 +36,10 @@ def main(argv=None) -> None:
         from . import crashes
         raw = a.crashes or sorted((a.data / "ksp_crashes").glob("*/raw"))[-1]
         crashes.build(a.data, raw, log=log)
+        return
+    if a.command == "context":
+        from . import context
+        context.build(a.data, log=log)
         return
     if a.command == "site":
         from . import site

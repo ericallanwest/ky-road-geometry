@@ -82,6 +82,14 @@
       </details>
     </section>
 
+    <section class="wrap" id="contextSection">
+      <h2>In context: how rugged, how rural</h2>
+      <p id="contextIntro"></p>
+      <div class="charts" id="tractMaps"></div>
+      <p id="contextText"></p>
+      <div class="scroll"><table id="contextTable" class="score"></table></div>
+    </section>
+
     <section class="wrap">
       <h2>How it works</h2>
       <ol class="steps">
@@ -124,6 +132,9 @@
         (<a id="serviceLink" href="https://services2.arcgis.com/CcI36Pduqd0OR4W9/ArcGIS/rest/services">KYTC</a>),
         fetched <span id="fetched">2026-10-30</span>. Elevation: <a href="https://kyfromabove.ky.gov/">KyFromAbove</a>
         bare-earth DEMs on the AWS Open Data registry, tile indexes snapshotted <span id="snapshot">2026-10-30</span>.
+        Ruggedness and rurality: USDA Economic Research Service,
+        <a href="https://www.ers.usda.gov/data-products/area-and-road-ruggedness-scales">Area and Road Ruggedness
+        Scales</a> (2020 tracts, with each tract's primary RUCA code); tract boundaries: Census Bureau TIGER/Line 2020.
         Crashes: Kentucky State Police reports from the public search at
         <a href="http://crashinformationky.org/">crashinformationky.org</a> (© KSP, all rights reserved), counted
         here, not republished. This project isn't affiliated with KYTC, KyFromAbove or KSP.</p>

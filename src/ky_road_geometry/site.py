@@ -1,6 +1,8 @@
 """The project page's data: ``docs/data/`` from the analysis outputs.
 
-* ``site.json``: headline numbers, the scores against KYTC's inventories, the demand summary;
+* ``site.json``: headline numbers, the scores against KYTC's inventories, the demand summary, and
+  district-wide counts and rates from the crash check and the ruggedness context;
+* ``tracts.geojson``: the district's census tracts with ERS's ruggedness and rurality codes;
 * ``map.geojson``: every route cut into 0.1-mi pieces carrying the most demanding values in them
   (only directions traffic really drives: a divided highway's ``-000`` carriageway is driven with
   the measure and its ``-010`` twin against it);
@@ -129,6 +131,8 @@ def build(data: Path, docs: Path, log=print) -> None:
     gj = map_geojson(d, ways)
     xy = np.vstack([f["geometry"]["coordinates"] for f in gj["features"]])
     log(f"map.geojson: {_write(out / 'map.geojson', gj) / 1e6:.1f} MB")
+    if (an / "tracts.geojson").exists():                # ERS's tract codes, from `kyrg context`
+        (out / "tracts.geojson").write_text((an / "tracts.geojson").read_text())
     log(f"routes/: {route_files(d, table, ways, inv, found, dips, out / 'routes') / 1e6:.1f} MB")
 
     # the page opens on a 5-25 mi route, at least half of it KYTC grade tangents to compare, where much of the
@@ -161,6 +165,7 @@ def build(data: Path, docs: Path, log=print) -> None:
         "demand": json.loads((an / "demand.json").read_text()),
         # KSP's crash reports stay local; these are counts and rates over the whole district
         "crashes": json.loads((an / "crashes.json").read_text()) if (an / "crashes.json").exists() else None,
+        "context": json.loads((an / "context.json").read_text()) if (an / "context.json").exists() else None,
         "featured": pick,
     })
     log(f"site.json written; featured {pick}")

@@ -126,22 +126,25 @@ def flags(d: pd.DataFrame, found: pd.DataFrame, inv_curves: pd.DataFrame) -> pd.
     return out
 
 
+def ways(d: pd.DataFrame, table: pd.DataFrame) -> pd.DataFrame:
+    """Per grid point: whether it's on a divided highway, and the most demand and stopping demand each way
+    traffic drives there (one way on a carriageway of a divided highway)."""
+    tw = table[table["ROUTE"].str.endswith("-010")]
+    twin = tw.set_index(tw["ROUTE"].str[:-4])[["BEG_MP", "END_MP"]].reindex(d["route"].str[:-4])
+    m = d["m"].to_numpy()
+    second = d["route"].str.endswith("-010").to_numpy()
+    # divided where the route is a second carriageway, or the mainline alongside one
+    alongside = (d["route"].str.endswith("-000").to_numpy() & twin["BEG_MP"].notna().to_numpy()
+                 & (m >= twin["BEG_MP"].to_numpy() - 0.01) & (m <= twin["END_MP"].to_numpy() + 0.01))
+    divided = second | alongside
+    pick = lambda c: np.where(second, d[f"{c}_non"], np.where(divided, d[f"{c}_inv"],   # noqa: E731
+                                                              np.fmax(d[f"{c}_inv"], d[f"{c}_non"])))
+    return pd.DataFrame({"divided": divided, "mu_pt": pick("mu"), "ms_pt": pick("mu_stop")}, index=d.index)
+
+
 def pieces(d: pd.DataFrame, table: pd.DataFrame, aadt: pd.DataFrame, years: int) -> pd.DataFrame:
     """The map's 0.1-mi pieces: most demanding point (each way traffic drives), AADT, vehicle-miles."""
-    tw = table[table["ROUTE"].str.endswith("-010")]
-    twin = tw.set_index(tw["ROUTE"].str[:-4])[["BEG_MP", "END_MP"]]
-    p = d.assign(piece=d["grid"] // PIECE)
-    # divided where the route is a second carriageway, or the mainline alongside one
-    base = p["route"].str[:-4]
-    tw = twin.reindex(base)
-    alongside = (p["route"].str.endswith("-000") & tw["BEG_MP"].notna().to_numpy()
-                 & (p["m"].to_numpy() >= tw["BEG_MP"].to_numpy() - 0.01) & (p["m"].to_numpy() <= tw["END_MP"].to_numpy() + 0.01))
-    p["divided"] = p["route"].str.endswith("-010") | alongside
-    # demand each way traffic drives: one way on a carriageway of a divided highway
-    p["mu_pt"] = np.where(p["route"].str.endswith("-010"), p["mu_non"],
-                          np.where(p["divided"], p["mu_inv"], np.fmax(p["mu_inv"], p["mu_non"])))
-    p["ms_pt"] = np.where(p["route"].str.endswith("-010"), p["mu_stop_non"],
-                          np.where(p["divided"], p["mu_stop_inv"], np.fmax(p["mu_stop_inv"], p["mu_stop_non"])))
+    p = d.assign(piece=d["grid"] // PIECE).join(ways(d, table))
     g = p.groupby(["route", "part", "piece"])
     out = g.agg(m=("m", "mean"), n=("grid", "size"), mu=("mu_pt", "max"), mu_stop=("ms_pt", "max"),
                 divided=("divided", "mean")).reset_index()
