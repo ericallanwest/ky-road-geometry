@@ -8,10 +8,12 @@ from pathlib import Path
 
 def main(argv=None) -> None:
     ap = argparse.ArgumentParser(prog="kyrg")
-    ap.add_argument("command", choices=["network", "inventory", "tiles", "harvest", "profile", "grades", "sight"])
+    ap.add_argument("command", choices=["network", "inventory", "tiles", "harvest", "profile", "grades", "sight",
+                                        "curves"])
     ap.add_argument("--data", type=Path, default=Path("data"))
     ap.add_argument("--counties", nargs="*", help="only routes in these counties (harvest, profile)")
     ap.add_argument("--workers", type=int, default=8)
+    ap.add_argument("--station-ft", type=float, default=50.0, help="chord length for curvature (curves)")
     a = ap.parse_args(argv)
     t0 = time.time()
 
@@ -87,6 +89,23 @@ def main(argv=None) -> None:
         fits.to_parquet(out / "grade_fits.parquet", index=False)
         result = {**vertical.score(fits), "bridges": bridge_score}
         (out / "grades.json").write_text(json.dumps(result, indent=2, default=str))
+        log(json.dumps({k: v for k, v in result.items() if k != "class_confusion"}, indent=1))
+        log("\n" + pd.DataFrame(result["class_confusion"]).fillna(0).astype(int).to_string())
+    if a.command == "curves":
+        import json
+
+        import pandas as pd
+
+        from . import horizontal
+        st = horizontal.curvature(horizontal.stations(parts, a.station_ft))
+        found = horizontal.curves(st)
+        out = a.data / "analysis"
+        out.mkdir(exist_ok=True)
+        st.to_parquet(out / "curvature.parquet", index=False)
+        found.to_parquet(out / "curves.parquet", index=False)
+        result = horizontal.score(found, pd.read_parquet(a.data / "inventory" / "curves.parquet"))
+        result["station_ft"] = a.station_ft
+        (out / "curves.json").write_text(json.dumps(result, indent=2, default=str))
         log(json.dumps({k: v for k, v in result.items() if k != "class_confusion"}, indent=1))
         log("\n" + pd.DataFrame(result["class_confusion"]).fillna(0).astype(int).to_string())
     if a.command == "sight":
