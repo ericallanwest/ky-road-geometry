@@ -1,6 +1,8 @@
 """The project page's data: ``docs/data/`` from the analysis outputs.
 
-* ``site.json``: headline numbers, the scores against KYTC's inventories, the demand summary;
+* ``site.json``: headline numbers, the scores against KYTC's inventories, the demand summary, and
+  district-wide counts and rates from the crash check and the ruggedness context;
+* ``tracts.geojson``: the district's census tracts with ERS's ruggedness and rurality codes;
 * ``map.geojson``: every route cut into 0.1-mi pieces carrying the most demanding values in them
   (only directions traffic really drives: a divided highway's ``-000`` carriageway is driven with
   the measure and its ``-010`` twin against it);
@@ -129,12 +131,18 @@ def build(data: Path, docs: Path, log=print) -> None:
     gj = map_geojson(d, ways)
     xy = np.vstack([f["geometry"]["coordinates"] for f in gj["features"]])
     log(f"map.geojson: {_write(out / 'map.geojson', gj) / 1e6:.1f} MB")
+    if (an / "tracts.geojson").exists():                # ERS's tract codes, from `kyrg context`
+        (out / "tracts.geojson").write_text((an / "tracts.geojson").read_text())
     log(f"routes/: {route_files(d, table, ways, inv, found, dips, out / 'routes') / 1e6:.1f} MB")
 
-    # the page opens on a 5-25 mi route where much of the road asks a lot
+    # the page opens on a 5-25 mi route, at least half of it KYTC grade tangents to compare, where much of the
+    # road asks a lot
     share = d.assign(hi=np.fmax(d["mu_inv"], d["mu_non"]) >= 0.2).groupby("route")["hi"].mean()
-    length = table.set_index("ROUTE")["LENGTH_MI"]
-    pick = share[length.reindex(share.index).between(5, 25)].sort_values().index[-1]
+    length = table.set_index("ROUTE")["LENGTH_MI"].reindex(share.index)
+    g = inv["grades"]
+    tangent_mi = g[g["GRADEDIR"].isin(["U", "D"]) & g["GRADEPER"].notna()].groupby("route")["MILES"].sum()
+    covered = (tangent_mi.reindex(share.index).fillna(0) / length) >= 0.5
+    pick = share[length.between(5, 25) & covered].sort_values().index[-1]
 
     fits = pd.read_parquet(an / "grade_fits.parquet")
     tangents = fits[fits["GRADEDIR"].isin(["U", "D"]) & fits["dem_rmse"].notna()]
@@ -155,6 +163,9 @@ def build(data: Path, docs: Path, log=print) -> None:
         "grade_fit_rmse_ft": float(tangents["dem_rmse"].median()),
         "curves": json.loads((an / "curves.json").read_text()),
         "demand": json.loads((an / "demand.json").read_text()),
+        # KSP's crash reports stay local; these are counts and rates over the whole district
+        "crashes": json.loads((an / "crashes.json").read_text()) if (an / "crashes.json").exists() else None,
+        "context": json.loads((an / "context.json").read_text()) if (an / "context.json").exists() else None,
         "featured": pick,
     })
     log(f"site.json written; featured {pick}")

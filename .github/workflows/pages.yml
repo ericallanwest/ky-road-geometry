@@ -1,0 +1,44 @@
+# The project page: docs/ as committed (docs/data is built locally by `kyrg site`), plus the crest and
+# sag explorer exported to WebAssembly here.
+name: pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync
+      - name: Build the wheel the explorer installs
+        run: uv build --wheel -o notebooks/public
+      - name: Export the explorer
+        run: |
+          uv run marimo export html-wasm notebooks/explorer.py -o docs/explorer --mode run
+          rm -f docs/explorer/CLAUDE.md
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

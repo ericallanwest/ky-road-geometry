@@ -35,6 +35,8 @@
   fillText();
   renderKpis();
   renderChecks();
+  renderCrashes();
+  renderContext();
   initMap();
 
   // ======================= text, headline numbers and the checks =======================
@@ -99,6 +101,160 @@
         `<td>${pct(v, 0)}</td></tr>`).join("") + "</tbody>";
   }
 
+  // crash reports: counts and rates only (the reports are KSP's)
+  function renderCrashes() {
+    const k = site.crashes;
+    if (!k) { document.getElementById("crashSection").hidden = true; return; }
+    const o = k.officer, cc = o.coded_curve, cr = o.coded_crest;
+    document.getElementById("crashIntro").textContent =
+      `Kentucky State Police reports for ${k.years[0]}–${k.years[1]} name the road and county of each crash and give ` +
+      `its coordinates. Of the ${fmt.format(k.on_routes)} on the district's US and KY routes, parking lots left out, ` +
+      `${pct(k.placed / k.on_routes, 0)} were placed within ${k.snap_ft} ft of the route they name. The reports are ` +
+      `KSP's, all rights reserved, and stay off this page: what's here are counts and rates over the whole district.`;
+    document.getElementById("officerText").textContent =
+      `Officers record whether the road was curved or straight where a crash happened, and whether it was level, on ` +
+      `a grade or at a hillcrest. Crashes they put on a curve are within ${k.near_ft} ft of a curve found in the lidar ` +
+      `${pct(cc.curve_lidar.when_coded, 0)} of the time; crashes they put on a straight road, ` +
+      `${pct(cc.curve_lidar.when_not, 0)}. KYTC's curve inventory, which reaches within ${k.near_ft} ft of ` +
+      `${pct(o.network_share.curve_kytc, 0)} of the district's road, tells them apart less well. Hillcrests are ` +
+      `coded on few reports and loosely, but those crashes are more often where a crest leaves less sight than it ` +
+      `takes to stop.`;
+    const share = (v) => (v == null ? "–" : pct(v, 0));
+    document.getElementById("officerTable").innerHTML =
+      `<thead><tr><th>The officer coded the road as</th><th>Crashes</th><th>Curve found in the lidar</th>` +
+      `<th>KYTC-recorded curve</th><th>Crest leaves too little sight to stop</th></tr></thead><tbody>` +
+      `<tr><td>Curved</td><td>${fmt.format(cc.coded)}</td><td>${share(cc.curve_lidar.when_coded)}</td>` +
+      `<td>${share(cc.curve_kytc.when_coded)}</td><td>–</td></tr>` +
+      `<tr><td>Straight</td><td>${fmt.format(cc.not_coded)}</td><td>${share(cc.curve_lidar.when_not)}</td>` +
+      `<td>${share(cc.curve_kytc.when_not)}</td><td>–</td></tr>` +
+      `<tr><td>At a hillcrest</td><td>${fmt.format(cr.coded)}</td><td>–</td><td>–</td><td>${share(cr.short_sight.when_coded)}</td></tr>` +
+      `<tr><td>Level or on a grade</td><td>${fmt.format(cr.not_coded)}</td><td>–</td><td>–</td><td>${share(cr.short_sight.when_not)}</td></tr>` +
+      `<tr><td class="k">All the district's road</td><td>–</td><td>${share(o.network_share.curve_lidar)}</td>` +
+      `<td>${share(o.network_share.curve_kytc)}</td><td>${share(o.network_share.short_sight)}</td></tr></tbody>`;
+
+    const D = k.deciles, lo = D[0], hi = D[D.length - 1], m = k.model;
+    const top = D.slice(D.length / 2);
+    const sum = (rows, key) => rows.reduce((a, r) => a + r[key], 0);
+    const topWet = sum(top, "wet_departure") / (sum(top, "wet_departure") + sum(top, "dry_departure"));
+    const rr = (x) => `${x.rate_ratio.toFixed(2)} (95% interval ${x.ci[0].toFixed(2)}–${x.ci[1].toFixed(2)})`;
+    document.getElementById("ratesText").textContent =
+      `Rank every 0.1-mile piece of road by its most demanding point and cut the list into tenths, about ` +
+      `${fmt.format(Math.round(k.pieces.miles / 10))} miles each. Roadway departures, single-vehicle crashes off the ` +
+      `road or into something beside it, rise from ${lo.wet_departure_rate.toFixed(0)} per 100 million vehicle-miles ` +
+      `on wet pavement in the least demanding tenth to ${hi.wet_departure_rate.toFixed(0)} in the most, and from ` +
+      `${lo.dry_departure_rate.toFixed(0)} to ${hi.dry_departure_rate.toFixed(0)} on dry. Animal crashes, which the ` +
+      `road's geometry shouldn't explain, fall from ${lo.animal_rate.toFixed(0)} to ${hi.animal_rate.toFixed(0)}. ` +
+      `Allowing for traffic, each 0.1 more of demand multiplies the wet departure rate by ${rr(m.wet_departure)}, ` +
+      `the dry by ${rr(m.dry_departure)} and the animal crash rate by ${m.animal.rate_ratio.toFixed(2)}. Wet ` +
+      `pavement's share of departures rises from ${pct(lo.wet_share, 0)} in the least demanding tenth to ` +
+      `${pct(topWet, 0)} across the most demanding half. Traffic is each KYTC section's latest count, mostly from ` +
+      `2020–2022, held for every year, so the rates are approximate.`;
+
+    const xs = D.map((r) => r.decile);
+    const series = [
+      { name: "Departures, dry", label: "Departures, dry", color: token("--s2"), xs, ys: D.map((r) => r.dry_departure_rate) },
+      { name: "Departures, wet", label: "Departures, wet", color: token("--s1"), xs, ys: D.map((r) => r.wet_departure_rate) },
+      { name: "Animal crashes", label: "Animal crashes", color: token("--context"), dash: true, xs, ys: D.map((r) => r.animal_rate) },
+    ];
+    const yMax = Math.ceil(Math.max(...series.flatMap((s) => s.ys)) / 10) * 10;
+    const card = cardIn(document.getElementById("ratesChart"), "Crashes per 100 million vehicle-miles",
+      "By tenth of the district's road, ranked by friction demand, lowest to highest. Dashed: animal crashes, the placebo.");
+    lineChart(card, { H: 230, aria: "Crash rates by tenth of the road ranked by friction demand.",
+      x: { min: 1, max: 10, ticks: xs, label: "tenth of the road by demand" },
+      y: { min: 0, max: yMax, ticks: niceTicks(0, yMax, 10) }, series,
+      tip: (i) => `<b>Tenth ${D[i].decile}</b>: demand ${D[i].mu_lo.toFixed(2)}–${D[i].mu_hi.toFixed(2)}<br>` +
+        series.map((s) => `<i style="background:${s.color}"></i>${s.name} ${s.ys[i].toFixed(1)}`).join("<br>") });
+
+    document.getElementById("ratesTable").innerHTML =
+      "<caption>Crashes, with the rate per 100 million vehicle-miles in parentheses.</caption>" +
+      "<thead><tr><th>Tenth</th><th>Demand</th><th>Miles</th><th>100M veh-mi</th><th>Departures, wet</th>" +
+      "<th>Departures, dry</th><th>Animal</th><th>Wet share of departures</th></tr></thead><tbody>" +
+      D.map((r) => `<tr><td>${r.decile}</td><td>${r.mu_lo.toFixed(2)}–${r.mu_hi.toFixed(2)}</td><td>${fmt.format(Math.round(r.miles))}</td>` +
+        `<td>${r.vmt_100m.toFixed(1)}</td><td>${fmt.format(r.wet_departure)} (${r.wet_departure_rate.toFixed(1)})</td>` +
+        `<td>${fmt.format(r.dry_departure)} (${r.dry_departure_rate.toFixed(1)})</td>` +
+        `<td>${fmt.format(r.animal)} (${r.animal_rate.toFixed(1)})</td><td>${pct(r.wet_share, 0)}</td></tr>`).join("") +
+      "</tbody>";
+  }
+
+  // ERS's ruggedness and rurality codes by census tract, and the road summed up by them
+  async function renderContext() {
+    const c = site.context;
+    if (!c) { document.getElementById("contextSection").hidden = true; return; }
+    const R = c.by_rrs, U = c.by_ruca;
+    const hi = R.find((r) => r.rrs_name === "Highly rugged"), lo = R[0];
+    const rural = U.find((r) => r.ruca_group === "Rural"), metro = U[0];
+    document.getElementById("contextIntro").textContent =
+      `The USDA Economic Research Service rates every census tract by how rugged its terrain is, across the tract ` +
+      `and along its roads, and codes how rural it is by where its residents commute. District 12's ` +
+      `${c.tracts} tracts are all at least slightly rugged along their roads, and ${c.tracts_by_rrs["Highly rugged"]} ` +
+      `of them are among the ${c.kentucky_highly_rugged} of Kentucky's ${fmt.format(c.kentucky_tracts)} tracts rated ` +
+      `highly rugged; ${c.tracts_by_ruca.Rural} are wholly rural.`;
+    document.getElementById("contextText").textContent =
+      `Within the district, the classes barely separate the road's geometry: every class here is mountain road, ` +
+      `with ${lo.curves_per_mile.toFixed(1)} to ${hi.curves_per_mile.toFixed(1)} curves a mile and a median demand ` +
+      `near ${hi.mu_p50.toFixed(2)}. Crash rates separate them more. Roadway departures on wet pavement run ` +
+      `${hi.wet_departure_rate.toFixed(0)} per 100 million vehicle-miles in highly rugged tracts against ` +
+      `${lo.wet_departure_rate.toFixed(0)} in slightly rugged ones, and ${rural.wet_departure_rate.toFixed(0)} in ` +
+      `rural tracts against ${metro.wet_departure_rate.toFixed(0)} in metropolitan ones, on road that asks about as ` +
+      `much of a car. Whatever the ruggedness class picks up beyond the road's geometry, from roadside slopes to ` +
+      `lane widths, isn't measured here.`;
+    const row = (label, r) => `<tr><td>${label}</td><td>${fmt.format(Math.round(r.miles))} (${pct(r.share, 0)})</td>` +
+      `<td>${r.curves_per_mile.toFixed(1)}</td><td>${r.grade_p90.toFixed(1)}%</td><td>${r.mu_p50.toFixed(2)}</td>` +
+      `<td>${pct(r.top_tenth, 0)}</td><td>${r.wet_departure_rate?.toFixed(1) ?? "–"}</td>` +
+      `<td>${r.dry_departure_rate?.toFixed(1) ?? "–"}</td><td>${r.animal_rate?.toFixed(1) ?? "–"}</td></tr>`;
+    const head = (t) => `<tr><td class="group" colspan="9">${t}</td></tr>`;
+    document.getElementById("contextTable").innerHTML =
+      "<caption>Crash rates per 100 million vehicle-miles.</caption>" +
+      "<thead><tr><th></th><th>Miles of road</th><th>Curves a mile</th><th>Grade, steepest tenth</th>" +
+      "<th>Median demand</th><th>In the district's most demanding tenth</th><th>Departures, wet</th>" +
+      "<th>Departures, dry</th><th>Animal crashes</th></tr></thead><tbody>" +
+      head("Road ruggedness") + R.map((r) => row(r.rrs_name, r)).join("") +
+      head("Rurality") + U.map((r) => row(r.ruca_group, r)).join("") + "</tbody>";
+
+    const tracts = await getJSON("data/tracts.geojson");
+    const host = document.getElementById("tractMaps");
+    const rrs = R.map((r) => r.rrs_name), ruca = U.map((r) => r.ruca_group);
+    tractMap(host, tracts, "rrs", rrs, "Road ruggedness", "ERS's Road Ruggedness Scale, 2020 tracts");
+    tractMap(host, tracts, "ruca", ruca, "Rurality", "ERS's primary RUCA code, grouped");
+  }
+
+  // a small choropleth of the tracts, classes on the sequential ramp, low to high
+  function tractMap(host, gj, key, classes, title, sub) {
+    const card = cardIn(host, title, sub);
+    const steps = classes.length === 3 ? [1, 2, 4] : [0, 1, 3, 4];   // spread the classes over the ramp
+    const color = Object.fromEntries(classes.map((k, i) => [k, RAMP[steps[i]]]));
+    card.insertAdjacentHTML("beforeend", `<div class="legend-inline">${classes.map((k) =>
+      `<span><i class="band" style="background:${color[k]}"></i>${k}</span>`).join("")}</div>`);
+    const rings = (g) => (g.type === "Polygon" ? [g.coordinates] : g.coordinates).flat();
+    let lon0 = Infinity, lon1 = -Infinity, lat0 = Infinity, lat1 = -Infinity;
+    for (const f of gj.features) for (const ring of rings(f.geometry)) for (const [x, y] of ring) {
+      lon0 = Math.min(lon0, x); lon1 = Math.max(lon1, x); lat0 = Math.min(lat0, y); lat1 = Math.max(lat1, y);
+    }
+    const kx = Math.cos(((lat0 + lat1) / 2) * Math.PI / 180);
+    const W = 400, s = (W - 8) / ((lon1 - lon0) * kx), H = Math.round((lat1 - lat0) * s + 8);
+    const { svg, add } = svgIn(card, W, H, `Map of District 12's census tracts by ${title.toLowerCase()}.`);
+    const tip = document.createElement("div");
+    tip.className = "tip";
+    tip.hidden = true;
+    card.appendChild(tip);
+    for (const f of gj.features) {
+      const d = rings(f.geometry).map((ring) => "M" + ring.map(([x, y]) =>
+        `${(4 + (x - lon0) * kx * s).toFixed(1)},${(4 + (lat1 - y) * s).toFixed(1)}`).join("L") + "Z").join("");
+      const path = add("path", { d, fill: color[f.properties[key]] ?? "none", "fill-rule": "evenodd",
+        stroke: token("--surface"), "stroke-width": 1 });
+      path.addEventListener("pointermove", (evt) => {
+        const box = card.getBoundingClientRect(), p = f.properties;
+        tip.hidden = false;
+        tip.innerHTML = `<b>${esc(p.county)} County</b>, tract ${esc(p.geoid.slice(5))}<br>${esc(p[key])}` +
+          `<br>${fmt.format(p.pop)} residents`;
+        const left = evt.clientX - box.left + 14;
+        tip.style.left = `${left + tip.offsetWidth > box.width ? left - tip.offsetWidth - 28 : left}px`;
+        tip.style.top = `${evt.clientY - box.top + 10}px`;
+      });
+      path.addEventListener("pointerleave", () => { tip.hidden = true; });
+    }
+  }
+
   // ======================= the map =======================
   function initMap() {
     const state = { layer: "mu", ready: false, route: null };
@@ -114,6 +270,8 @@
       const [, br] = LAYERS[k];
       return ["step", ["get", k], RAMP[0], br[0], RAMP[1], br[1], RAMP[2], br[2], RAMP[3], br[3], RAMP[4]];
     };
+    // a piece without a value for the layer (no elevation there) is left off, not drawn in the fallback black
+    const hasValue = (k) => ["==", ["typeof", ["get", k]], "number"];
     const legend = document.getElementById("legend");
     const drawLegend = () => {
       const [, br, f, title] = LAYERS[state.layer];
@@ -144,7 +302,7 @@
         paint: { "line-color": token("--ink"), "line-opacity": 0.25, "line-width": ["interpolate", ["linear"], ["zoom"], 8, 7, 14, 14] },
       }, firstSymbol);
       map.addLayer({
-        id: "roads", type: "line", source: "roads", filter: ["has", state.layer],
+        id: "roads", type: "line", source: "roads", filter: hasValue(state.layer),
         layout: { "line-cap": "round", "line-join": "round" },
         paint: { "line-color": colorBy(state.layer), "line-width": ["interpolate", ["linear"], ["zoom"], 8, 1.6, 11, 2.6, 14, 4] },
       }, firstSymbol);
@@ -156,7 +314,7 @@
       state.layer = k;
       seg.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.k === k)));
       if (state.ready) {
-        map.setFilter("roads", ["has", k]);
+        map.setFilter("roads", hasValue(k));
         map.setPaintProperty("roads", "line-color", colorBy(k));
       }
       drawLegend();
@@ -243,7 +401,9 @@
       `<i style="background:${s.color}"></i>${s.name} ${s.ys[i] == null ? "–" : `${s.ys[i].toFixed(d)}${unit}`}`).join("<br>");
 
     // elevation: the road, and the bare earth where it falls away under a bridge
-    let card = cardIn(host, "Elevation", "Feet above sea level. Gaps in the bare-earth line are where it matches the road.");
+    let card = cardIn(host, "Elevation", "Feet above sea level." +
+      (r.bridges.length ? " Bars above: KYTC's recorded bridges, decked over in the road's line." : "") +
+      (P.bare.some((v) => v != null) ? " The bare-earth line shows only where it falls away from the road." : ""));
     let series = [{ name: "Road", label: "Road", color: accent, xs, ys: down(P.z) },
       { name: "Bare earth", label: "Bare earth", color: muted, xs, ys: down(P.bare, "mean"), width: 1.5 }];
     let [lo, hi] = range(series, 10, 50);
@@ -252,10 +412,12 @@
       bars: r.bridges.map(([a, b]) => ({ x0: a, x1: b, fill: ink2 })), series, tip: tip(series, " ft", 0) });
 
     // grade: the lidar against KYTC's records
-    card = cardIn(host, "Grade", "Percent, rising with the milepoints. KYTC's records are uphill and downhill tangents; crests and sags have no single grade.");
+    const kytcGrade = down(fill(r.grades, ([, , dir, g]) => (g == null || !["U", "D"].includes(dir) ? null : dir === "U" ? g : -g)));
+    card = cardIn(host, "Grade", "Percent, rising with the milepoints. " + (kytcGrade.some((v) => v != null)
+      ? "KYTC's records are uphill and downhill tangents; crests and sags have no single grade."
+      : "KYTC's grade inventory has no uphill or downhill tangents on this route."));
     series = [{ name: "Lidar", label: "Lidar", color: accent, xs, ys: down(P.grade) },
-      { name: "KYTC", label: "KYTC", color: muted, xs, width: 1.5,
-        ys: down(fill(r.grades, ([, , dir, g]) => (g == null || !["U", "D"].includes(dir) ? null : dir === "U" ? g : -g))) }];
+      { name: "KYTC", label: "KYTC", color: muted, xs, width: 1.5, ys: kytcGrade }];
     [lo, hi] = range(series, 1, 2);
     lo = Math.max(lo, -16); hi = Math.min(hi, 16);
     lineChart(card, { H: 190, aria: `Grade along ${routeLabel(r.route)}.`, x: xAxis,

@@ -1,4 +1,4 @@
-"""Command line: ``kyrg network|inventory|tiles|harvest|profile``."""
+"""Command line: ``kyrg network|inventory|tiles|harvest|profile|grades|sight|curves|demand|crashes|context|site``."""
 from __future__ import annotations
 
 import argparse
@@ -9,10 +9,13 @@ from pathlib import Path
 def main(argv=None) -> None:
     ap = argparse.ArgumentParser(prog="kyrg")
     ap.add_argument("command", choices=["network", "inventory", "tiles", "harvest", "profile", "grades", "sight",
-                                        "curves", "demand", "site"])
+                                        "curves", "demand", "crashes", "context", "site"])
     ap.add_argument("--docs", type=Path, default=Path("docs"))
     ap.add_argument("--data", type=Path, default=Path("data"))
     ap.add_argument("--counties", nargs="*", help="only routes in these counties (harvest, profile)")
+    ap.add_argument("--layers", nargs="*", help="only these inventories (inventory)")
+    ap.add_argument("--crashes", type=Path, help="folder of KSP crash extract zips (crashes; default the newest "
+                                                  "data/ksp_crashes/*/raw)")
     ap.add_argument("--workers", type=int, default=8)
     ap.add_argument("--station-ft", type=float, default=50.0, help="chord length for curvature (curves)")
     a = ap.parse_args(argv)
@@ -27,7 +30,16 @@ def main(argv=None) -> None:
         return
     if a.command == "inventory":
         from . import inventory
-        inventory.build(a.data, log=log)
+        inventory.build(a.data, layers=a.layers, log=log)
+        return
+    if a.command == "crashes":
+        from . import crashes
+        raw = a.crashes or sorted((a.data / "ksp_crashes").glob("*/raw"))[-1]
+        crashes.build(a.data, raw, log=log)
+        return
+    if a.command == "context":
+        from . import context
+        context.build(a.data, log=log)
         return
     if a.command == "site":
         from . import site
